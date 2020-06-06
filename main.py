@@ -8,11 +8,12 @@ RED = 0
 GREEN = 55
 BLUE = 120 
 POLE_RADIUS = 25
+ROBOT_WIDTH = 400
 
-data = loadmat('2020-04-23-10-15-56.mat')
+#data = loadmat('2020-04-23-10-15-56.mat')
+data = loadmat('2020-04-23-10-17-17.mat')
 img = data['image_rgb']
 imsave('test_img.png', cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-print(data['K_rgb'])  
 K = data['K_rgb']
 
 def drawRect(img_hsv, x, y, w, h):
@@ -51,12 +52,12 @@ def getPoles(colors, img_hsv, img_d, K):
             area = cv2.contourArea(cnt)
             lng = cv2.arcLength(cnt, True)
             x, y, w, h = cv2.boundingRect(cnt)
-            # print(h/w, area)
-            if ((h/w) > 3.5) and (area > 1000):
+            #print('AREA',  area)
+            if (area > 1000):
                 M = cv2.moments(cnt)
                 cx = int(round(M['m10'] / M['m00']))
                 cy = int(round(M['m01'] / M['m00']))
-                print('center', cy, cx)
+                #print('center', cy, cx)
                 spaceVector = np.dot(invK, np.array([cx, cy, 1]))
                 spaceVector[1] = 0 # The y coordinate would only mess with distances
                 spaceVector = spaceVector * img_d[cy,cx]
@@ -70,16 +71,25 @@ def getGateParams(leftPole, rightPole):
     # Transform the coordinates of poles to a top down representation where z -> y, x->x
     lPos = np.array([leftPole['spaceVector'][0], leftPole['spaceVector'][2]])
     rPos = np.array([rightPole['spaceVector'][0], rightPole['spaceVector'][2]])
-    gateWidth = np.linalg.norm(rPos - lPos) - 2 * POLE_RADIUS
+
     gateCenterPos = (lPos + rPos) / 2
     gateFacingDir = rPos - lPos
     gateFacingDir = np.array([gateFacingDir[1], gateFacingDir[0]])
     robotFacingDir = np.array([0,1])
+    
+    alpha = getVectorsAngle(robotFacingDir, gateFacingDir)
+    beta = getVectorsAngle(robotFacingDir, gateCenterPos)
+    robotDist = np.linalg.norm(gateCenterPos) 
+    gateWidth = np.linalg.norm(rPos - lPos) - 2 * POLE_RADIUS
+    visibleWidth = np.cos(alpha) * gateWidth
+    robotWillPassAfterRotation = visibleWidth > ROBOT_WIDTH
     print('angle between poles', getVectorsAngle(lPos, rPos) * 180 / 3.14159267)
-    print('alpha', getVectorsAngle(robotFacingDir, gateFacingDir) * 180 / 3.14159267)
-    print('beta', getVectorsAngle(robotFacingDir, gateCenterPos) * 180 / 3.14159267)
-    print('distance from gate\'s center', np.linalg.norm(gateCenterPos))
-    print('goal width:', gateWidth) 
+    print('alpha', alpha * 180 / 3.14159267)
+    print('beta', beta * 180 / 3.14159267)
+    print('distance from gate\'s center', robotDist)
+    print('gate width:', gateWidth) 
+    print('visible gate width:', visibleWidth)
+    print('will robot pass?', robotWillPassAfterRotation)
     return 0
 
 def solveProblem2(img_hsv):
