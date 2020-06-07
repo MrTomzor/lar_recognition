@@ -34,6 +34,20 @@ def getContours(color, img_hsv):
     imsave('mask_' + COLOR_NAMES[color] + '.png',[[[x, x, x] for x in row] for row in mask]) 
     return contours
 
+def getPoleCorners(pole):
+    tmp = []
+    for i in range(4):
+        if pole['rect'][i][1] > pole['row']:
+            tmp.append(pole['rect'][i])
+
+    if tmp[0][0] < tmp[1][0]:
+        left_corner = tmp[0]
+        right_corner = tmp[1]
+    else:
+        left_corner = tmp[1]
+        right_corner = tmp[0]
+    return [left_corner, right_corner]
+
 def getPoles(colors, img_hsv, img_d, K):
     poles = []
     invK = np.linalg.inv(K)
@@ -48,12 +62,12 @@ def getPoles(colors, img_hsv, img_d, K):
                 M = cv2.moments(cnt)
                 cx = int(round(M['m10'] / M['m00']))
                 cy = int(round(M['m01'] / M['m00']))
-                #print('center', cy, cx)
+                rect = cv2.minAreaRect(cnt)
                 spaceVector = np.dot(invK, np.array([cx, cy, 1]))
                 spaceVector[1] = 0 # The y coordinate would only mess with distances
                 spaceVector = spaceVector * img_d[cy,cx]
                 if img_d[cy, cx]!= 0:
-                    pole = {'color': color, 'col': cx, 'row': cy, 'depth': img_d[cy, cx], 'bound': [x, y, w, h], 'spaceVector': spaceVector}
+                    pole = {'color': color, 'col': cx, 'row': cy, 'depth': img_d[cy, cx], 'bound': [x, y, w, h], 'spaceVector': spaceVector, 'rect': cv2.boxPoints(rect)}
                     print(pole)
                     poles.append(pole)
     return poles
@@ -63,8 +77,12 @@ def getGateParameters(leftPole, rightPole, imageWidth):
     lPos = np.array([leftPole['spaceVector'][0], leftPole['spaceVector'][2]])
     rPos = np.array([rightPole['spaceVector'][0], rightPole['spaceVector'][2]])
 
-    gateImageWidth = rightPole['col'] - leftPole['col'] 
-    gateImageCenter = (rightPole['col'] + leftPole['col']) / 2 - imageWidth / 2
+
+    gateLeftCornerCol = getPoleCorners(leftPole)[1][0]
+    gateRightCornerCol = getPoleCorners(rightPole)[0][0]
+
+    gateImageWidth = gateRightCornerCol - gateLeftCornerCol 
+    gateImageCenter = (gateRightCornerCol + gateLeftCornerCol) / 2 - imageWidth / 2
 
     gateCenterPos = (lPos + rPos) / 2
     gateFacingDir = rPos - lPos
@@ -75,6 +93,9 @@ def getGateParameters(leftPole, rightPole, imageWidth):
     alpha = getVectorsAngle(robotFacingDir, gateCenterPos)
     robotDist = np.linalg.norm(gateCenterPos) 
     gateWidth = np.linalg.norm(rPos - lPos) - 2 * POLE_RADIUS
+    if gateWidth > 600 or gateWidth < 400:
+        print("INFO: Gate too wide or too small, robot may be inside a gate")
+        return None
     visibleWidth = np.cos(alpha) * gateWidth
     robotWillPassAfterRotation = visibleWidth > ROBOT_WIDTH + 2 * SAFE_ROBOT_PASS_DISTANCE
     return {'alpha': alpha, 'beta': beta, 'v': robotDist, 'd': gateWidth, 'willPass': robotWillPassAfterRotation, 'c': gateImageCenter, 'g': gateImageWidth}
@@ -98,6 +119,8 @@ def getNearestGateParameters(data):
             leftPole = poles[1]
             rightPole = poles[0]
         params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
+        if params == None:
+            continue
         params['color'] = COLOR_NAMES[color]
         #print('INFO: Nearest gate of color ' + COLOR_NAMES[color] + ': ',  params)
         gatesDetected.append(params)
