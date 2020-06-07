@@ -10,6 +10,7 @@ BLUE = 120
 COLOR_NAMES = {RED: 'RED', GREEN: 'GREEN', BLUE: 'BLUE'}
 POLE_RADIUS = 25
 ROBOT_WIDTH = 400
+SAFE_ROBOT_PASS_DISTANCE = 5
 
 #data = loadmat('2020-04-23-10-15-56.mat')
 data = loadmat('2020-04-23-10-17-17.mat')
@@ -83,7 +84,7 @@ def getGateParams(leftPole, rightPole, imageWidth):
     robotDist = np.linalg.norm(gateCenterPos) 
     gateWidth = np.linalg.norm(rPos - lPos) - 2 * POLE_RADIUS
     visibleWidth = np.cos(alpha) * gateWidth
-    robotWillPassAfterRotation = visibleWidth > ROBOT_WIDTH
+    robotWillPassAfterRotation = visibleWidth > ROBOT_WIDTH + 2 * SAFE_ROBOT_PASS_DISTANCE
     #print('angle between poles', getVectorsAngle(lPos, rPos) * 180 / 3.14159267)
     #print('alpha', alpha * 180 / 3.14159267)
     #print('beta', beta * 180 / 3.14159267)
@@ -102,7 +103,7 @@ def solveProblem(data):
     for color in [GREEN, RED, BLUE]:
         poles = getPoles([color], img_hsv, img_depth, K)
         if len(poles) < 2:
-            print('INFO: Fewer than 2 poles of color', COLOR_NAMES[color], ' detected!')
+            print('INFO: Fewer than 2 poles of color ' + COLOR_NAMES[color] +  ' detected!')
             continue
         poles = sorted(poles, key=lambda x: x.get('depth'), reverse = True)
         if poles[0]['col'] < poles[1]['col']:
@@ -113,9 +114,11 @@ def solveProblem(data):
             rightPole = poles[0]
         params = getGateParams(leftPole, rightPole, len(img_hsv[0]))
         params['color'] = color
-        print('INFO: Nearest gate of color ', COLOR_NAMES[color],': ',  params)
+        print('INFO: Nearest gate of color ' + COLOR_NAMES[color] + ': ',  params)
         gatesDetected.append(params)
-
+    gatesDetected = sorted(gatesDetected, key=lambda x: x.get('v'), reverse = True)
+    print('INFO: Nearest gate found :',  gatesDetected[0])
+    return gatesDetected[0]
 
 
 #imsave('test_rect.png',drawRect(img, 30, 30, 100, 100))
