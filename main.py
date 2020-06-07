@@ -1,6 +1,5 @@
 import cv2
 import sys
-#import imageio
 import numpy as np
 from scipy.io import loadmat
 from scipy.misc import imsave
@@ -59,7 +58,7 @@ def getPoles(colors, img_hsv, img_d, K):
                     poles.append(pole)
     return poles
 
-def getGateParams(leftPole, rightPole, imageWidth):
+def getGateParameters(leftPole, rightPole, imageWidth):
     # Transform the coordinates of poles to a top down representation where z -> y, x->x
     lPos = np.array([leftPole['spaceVector'][0], leftPole['spaceVector'][2]])
     rPos = np.array([rightPole['spaceVector'][0], rightPole['spaceVector'][2]])
@@ -78,16 +77,9 @@ def getGateParams(leftPole, rightPole, imageWidth):
     gateWidth = np.linalg.norm(rPos - lPos) - 2 * POLE_RADIUS
     visibleWidth = np.cos(alpha) * gateWidth
     robotWillPassAfterRotation = visibleWidth > ROBOT_WIDTH + 2 * SAFE_ROBOT_PASS_DISTANCE
-    #print('angle between poles', getVectorsAngle(lPos, rPos) * 180 / 3.14159267)
-    #print('alpha', alpha * 180 / 3.14159267)
-    #print('beta', beta * 180 / 3.14159267)
-    #print('distance from gate\'s center', robotDist)
-    #print('gate width:', gateWidth) 
-    #print('visible gate width:', visibleWidth)
-    #print('will robot pass?', robotWillPassAfterRotation)
     return {'alpha': alpha, 'beta': beta, 'v': robotDist, 'd': gateWidth, 'willPass': robotWillPassAfterRotation, 'c': gateImageCenter, 'g': gateImageWidth}
 
-def solveProblem(data):
+def getNearestGateParameters(data):
     gatesDetected = []
     img_hsv = cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2HSV) 
     img_depth = data['image_depth']
@@ -105,7 +97,7 @@ def solveProblem(data):
         else:
             leftPole = poles[1]
             rightPole = poles[0]
-        params = getGateParams(leftPole, rightPole, len(img_hsv[0]))
+        params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
         params['color'] = color
         print('INFO: Nearest gate of color ' + COLOR_NAMES[color] + ': ',  params)
         gatesDetected.append(params)
@@ -123,4 +115,4 @@ if __name__ == "__main__":
         exit(101)
     data = loadmat(sys.argv[1])
     imsave('testimg.png',cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2RGB))
-    solveProblem(data)
+    getNearestGateParameters(data)
