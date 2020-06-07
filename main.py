@@ -68,7 +68,6 @@ def getPoles(colors, img_hsv, img_d, K):
                 spaceVector = spaceVector * img_d[cy,cx]
                 if img_d[cy, cx]!= 0:
                     pole = {'color': color, 'col': cx, 'row': cy, 'depth': img_d[cy, cx], 'bound': [x, y, w, h], 'spaceVector': spaceVector, 'rect': cv2.boxPoints(rect)}
-                    print(pole)
                     poles.append(pole)
     return poles
 
@@ -94,7 +93,6 @@ def getGateParameters(leftPole, rightPole, imageWidth):
     robotDist = np.linalg.norm(gateCenterPos) 
     gateWidth = np.linalg.norm(rPos - lPos) - 2 * POLE_RADIUS
     if gateWidth > 600 or gateWidth < 400:
-        print("INFO: Gate too wide or too small, robot may be inside a gate")
         return None
     visibleWidth = np.cos(alpha) * gateWidth
     robotWillPassAfterRotation = visibleWidth > ROBOT_WIDTH + 2 * SAFE_ROBOT_PASS_DISTANCE
@@ -107,6 +105,7 @@ def getNearestGateParameters(data):
     K = data['K_rgb']
 
     for color in [GREEN, RED, BLUE]:
+        # Get poles of this color from the image and sort them by depth
         poles = getPoles([color], img_hsv, img_depth, K)
         if len(poles) < 2:
             print('INFO: Fewer than 2 poles of color ' + COLOR_NAMES[color] +  ' detected!')
@@ -118,25 +117,39 @@ def getNearestGateParameters(data):
         else:
             leftPole = poles[1]
             rightPole = poles[0]
+        # Calculate gate parameters. If calculating from the two nearest poles gives weird results,
+        # then the robot is probably inside a gate and the nearest pole is discarded
         params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
         if params == None:
-            continue
+            print("INFO: Nearest " + COLOR_NAMES[color] + " gate too wide or too small, robot may be inside the gate")
+            if len(poles) < 3:
+                continue
+            poles.pop(0)
+            if poles[0]['col'] < poles[1]['col']:
+                leftPole = poles[0]
+                rightPole = poles[1]
+            else:
+                leftPole = poles[1]
+                rightPole = poles[0]
+            params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
+            if params == None:
+                # Did not find gate even after discarding closest pole, probably invalid data
+                continue
         params['color'] = COLOR_NAMES[color]
-        #print('INFO: Nearest gate of color ' + COLOR_NAMES[color] + ': ',  params)
         gatesDetected.append(params)
+
     if len(gatesDetected) == 0:
-        print('ERROR: Fewer than 2 poles found for each color, no gate detected')
+        print('ERROR: No gates detected!')
         exit(100)
     gatesDetected = sorted(gatesDetected, key=lambda x: x.get('v'), reverse=False)
     nearestGate = gatesDetected[0]
-    #print('INFO: Nearest gate found :',  gatesDetected[0])
-    print('Color of gate: ', nearestGate['color'])
-    print('Goal center distance from center of image', nearestGate['c'])
-    print('Goal width from image', nearestGate['g'])
-    print('Alpha', nearestGate['alpha'])
-    print('Beta', nearestGate['beta'])
-    print('Distance from gate\'s center', nearestGate['v'])
-    print('Gate width:', nearestGate['d']) 
+    print('Color of nearest gate: ', nearestGate['color'])
+    print('c: ', nearestGate['c'])
+    print('g: ', nearestGate['g'])
+    print('alpha: ', nearestGate['alpha'])
+    print('beta: ', nearestGate['beta'])
+    print('v: ', nearestGate['v'])
+    print('d: ', nearestGate['d']) 
     print('Will robot pass after rotation?', nearestGate['willPass'])
     return 
 
