@@ -98,15 +98,16 @@ def getNearestGateParameters(data):
             leftPole = poles[1]
             rightPole = poles[0]
         params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
-        params['color'] = color
+        params['color'] = COLOR_NAMES[color]
         #print('INFO: Nearest gate of color ' + COLOR_NAMES[color] + ': ',  params)
         gatesDetected.append(params)
     if len(gatesDetected) == 0:
         print('ERROR: Fewer than 2 poles found for each color, no gate detected')
         exit(100)
-    gatesDetected = sorted(gatesDetected, key=lambda x: x.get('v'), reverse = True)
+    gatesDetected = sorted(gatesDetected, key=lambda x: x.get('v'))
     nearestGate = gatesDetected[0]
     #print('INFO: Nearest gate found :',  gatesDetected[0])
+    print('Color of gate: ', nearestGate['color'])
     print('Goal center distance from center of image', nearestGate['c'])
     print('Goal width from image', nearestGate['g'])
     print('Alpha', nearestGate['alpha'])
