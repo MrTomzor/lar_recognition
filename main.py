@@ -43,7 +43,7 @@ def getPoles(colors, img_hsv, img_d, K):
             area = cv2.contourArea(cnt)
             lng = cv2.arcLength(cnt, True)
             x, y, w, h = cv2.boundingRect(cnt)
-            print('AREA',  area)
+            #print('AREA',  area)
             if (area > 400):
                 M = cv2.moments(cnt)
                 cx = int(round(M['m10'] / M['m00']))
@@ -99,15 +99,22 @@ def getNearestGateParameters(data):
             rightPole = poles[0]
         params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
         params['color'] = color
-        print('INFO: Nearest gate of color ' + COLOR_NAMES[color] + ': ',  params)
+        #print('INFO: Nearest gate of color ' + COLOR_NAMES[color] + ': ',  params)
         gatesDetected.append(params)
     if len(gatesDetected) == 0:
         print('ERROR: Fewer than 2 poles found for each color, no gate detected')
         exit(100)
     gatesDetected = sorted(gatesDetected, key=lambda x: x.get('v'), reverse = True)
-    print('INFO: Nearest gate found :',  gatesDetected[0])
-    return gatesDetected[0]
-
+    nearestGate = gatesDetected[0]
+    #print('INFO: Nearest gate found :',  gatesDetected[0])
+    print('Goal center distance from center of image', nearestGate['c'])
+    print('Goal width from image', nearestGate['g'])
+    print('Alpha', nearestGate['alpha'])
+    print('Beta', nearestGate['beta'])
+    print('Distance from gate\'s center', nearestGate['v'])
+    print('Gate width:', nearestGate['d']) 
+    print('Will robot pass after rotation?', nearestGate['willPass'])
+    return 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
