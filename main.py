@@ -7,6 +7,7 @@ from scipy.misc import imsave
 RED = 0
 GREEN = 55
 BLUE = 120 
+COLOR_NAMES = {RED: 'RED', GREEN: 'GREEN', BLUE: 'BLUE'}
 POLE_RADIUS = 25
 ROBOT_WIDTH = 400
 
@@ -25,9 +26,6 @@ def drawRect(img_hsv, x, y, w, h):
         img_hsv[y + yy][x] = clr
         img_hsv[y + yy][x + w] = clr
     return img_hsv
-
-def getUnitVector(vector):
-    return vector / np.linalg.norm(vector)
 
 def getVectorsAngle(v1, v2):
     return np.arccos(np.dot(np.transpose(v1),v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
@@ -62,15 +60,18 @@ def getPoles(colors, img_hsv, img_d, K):
                 spaceVector[1] = 0 # The y coordinate would only mess with distances
                 spaceVector = spaceVector * img_d[cy,cx]
                 if img_d[cy, cx] != 0:
-                    pole = {'color': color, 'col': cx, 'row': cy, 'depth': img_d[cy, cx], 'bound': [x, y, w, h], 'spaceVector': spaceVector} 
+                    pole = {'color': color, 'col': cx, 'row': cy, 'depth': img_d[cy, cx], 'bound': [x, y, w, h], 'spaceVector': spaceVector}
                     print(pole)
                     poles.append(pole)
     return poles
 
-def getGateParams(leftPole, rightPole):
+def getGateParams(leftPole, rightPole, imageWidth):
     # Transform the coordinates of poles to a top down representation where z -> y, x->x
     lPos = np.array([leftPole['spaceVector'][0], leftPole['spaceVector'][2]])
     rPos = np.array([rightPole['spaceVector'][0], rightPole['spaceVector'][2]])
+
+    gateImageWidth = rightPole['bound'][0] - (leftPole['bound'][0] + leftPole['bound'][2])
+    gateImageCenter = (rightPole['col'] + leftPole['col']) / 2 - imageWidth / 2
 
     gateCenterPos = (lPos + rPos) / 2
     gateFacingDir = rPos - lPos
@@ -83,33 +84,39 @@ def getGateParams(leftPole, rightPole):
     gateWidth = np.linalg.norm(rPos - lPos) - 2 * POLE_RADIUS
     visibleWidth = np.cos(alpha) * gateWidth
     robotWillPassAfterRotation = visibleWidth > ROBOT_WIDTH
-    print('angle between poles', getVectorsAngle(lPos, rPos) * 180 / 3.14159267)
-    print('alpha', alpha * 180 / 3.14159267)
-    print('beta', beta * 180 / 3.14159267)
-    print('distance from gate\'s center', robotDist)
-    print('gate width:', gateWidth) 
-    print('visible gate width:', visibleWidth)
-    print('will robot pass?', robotWillPassAfterRotation)
-    return 0
+    #print('angle between poles', getVectorsAngle(lPos, rPos) * 180 / 3.14159267)
+    #print('alpha', alpha * 180 / 3.14159267)
+    #print('beta', beta * 180 / 3.14159267)
+    #print('distance from gate\'s center', robotDist)
+    #print('gate width:', gateWidth) 
+    #print('visible gate width:', visibleWidth)
+    #print('will robot pass?', robotWillPassAfterRotation)
+    return {'alpha': alpha, 'beta': beta, 'v': robotDist, 'd': gateWidth, 'willPass': robotWillPassAfterRotation, 'c': gateImageCenter, 'g': gateImageWidth}
 
-def solveProblem2(img_hsv):
-    # Pick nearest two green poles and set the one on the left as leftPole 
-    # and the other one as rightPole
-    poles = getPoles([GREEN], img_hsv, data['image_depth'], K) 
-    if len(poles) < 2:
-        print('ERROR: Fewer than 2 green poles detected!')
-        exit(100)
-    poles = sorted(poles, key=lambda x: x.get('depth'), reverse = True)
-    if poles[0]['col'] < poles[1]['col']:
-        leftPole = poles[0]
-        rightPole = poles[1]
-    else:
-        leftPole = poles[1]
-        rightPole = poles[0]
-    getGateParams(leftPole, rightPole)
+def solveProblem(data):
+    gatesDetected = []
+    img_hsv = cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2HSV) 
+    img_depth = data['image_depth']
+    K = data['K_rgb']
+
+    for color in [GREEN, RED, BLUE]:
+        poles = getPoles([color], img_hsv, img_depth, K)
+        if len(poles) < 2:
+            print('INFO: Fewer than 2 poles of color', COLOR_NAMES[color], ' detected!')
+            continue
+        poles = sorted(poles, key=lambda x: x.get('depth'), reverse = True)
+        if poles[0]['col'] < poles[1]['col']:
+            leftPole = poles[0]
+            rightPole = poles[1]
+        else:
+            leftPole = poles[1]
+            rightPole = poles[0]
+        params = getGateParams(leftPole, rightPole, len(img_hsv[0]))
+        params['color'] = color
+        print('INFO: Nearest gate of color ', COLOR_NAMES[color],': ',  params)
+        gatesDetected.append(params)
+
 
 
 #imsave('test_rect.png',drawRect(img, 30, 30, 100, 100))
-#print(np.dot(K,np.array([[0],[0],[100]])))
-#print(np.dot(np.linalg.inv(K),[[600],[233],[1]]))
-solveProblem2(cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2HSV))
+solveProblem(data)
