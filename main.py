@@ -3,6 +3,7 @@ import sys
 import numpy as np
 from scipy.io import loadmat
 from scipy.misc import imsave
+import math
 
 RED = 0 
 GREEN = 62
@@ -24,7 +25,10 @@ def drawRect(img_hsv, x, y, w, h):
     return img_hsv
 
 def getVectorsAngle(v1, v2):
-    return np.arccos(np.dot(np.transpose(v1),v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
+    if np.cross(v1, v2) > 0:
+        return np.arccos(np.dot(np.transpose(v1),v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
+    return -np.arccos(np.dot(np.transpose(v1),v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
+
 
 def getContours(color, img_hsv):
     hueThreshold = 20
@@ -48,7 +52,7 @@ def getPoleCorners(pole):
         right_corner = tmp[0]
     return [left_corner, right_corner]
 
-def getPoles(colors, img_hsv, img_d, K):
+def getPoles(colors, img_hsv, img_d, K, pc):
     poles = []
     invK = np.linalg.inv(K)
     for color in colors:
@@ -63,11 +67,13 @@ def getPoles(colors, img_hsv, img_d, K):
                 cx = int(round(M['m10'] / M['m00']))
                 cy = int(round(M['m01'] / M['m00']))
                 rect = cv2.minAreaRect(cnt)
-                spaceVector = np.dot(invK, np.array([cx, cy, 1]))
-                spaceVector[1] = 0 # The y coordinate would only mess with distances
-                spaceVector = spaceVector * img_d[cy,cx]
+                #spaceVector = np.dot(invK, np.array([cx, cy, 1]))
+                #spaceVector[1] = 0 # The y coordinate would only mess with distances
+                #spaceVector = spaceVector * img_d[cy,cx]
+                spaceVector = pc[cy][cx] * 1000
                 if img_d[cy, cx]!= 0:
                     pole = {'color': color, 'col': cx, 'row': cy, 'depth': img_d[cy, cx], 'bound': [x, y, w, h], 'spaceVector': spaceVector, 'rect': cv2.boxPoints(rect)}
+                    #print('spaceVector = ', spaceVector)
                     poles.append(pole)
     return poles
 
@@ -76,6 +82,21 @@ def getGateParameters(leftPole, rightPole, imageWidth):
     lPos = np.array([leftPole['spaceVector'][0], leftPole['spaceVector'][2]])
     rPos = np.array([rightPole['spaceVector'][0], rightPole['spaceVector'][2]])
 
+    
+    #x1, y1, z1 = leftPole['spaceVector']
+    #x2, y2, z2 = rightPole['spaceVector']
+    #x = (x1 + x2) / 2
+    #z = (z1 + z2) / 2
+    #size = math.sqrt(x**2 + z**2)
+    #v = math.sqrt(x**2+z**2)
+    #d = math.sqrt((x1-x2)**2+(z1-z2)**2)
+    #alpha = -math.degrees(math.atan2(x, z))
+    #gamma = 90 - math.degrees(math.atan((x2 - x1) / (z2 - z1)))
+    #beta = gamma - alpha
+    #if(beta > 90):
+    #    beta -= 180
+    #alpha*= 3.14159267/180
+    #beta *= 3.14159267/180
 
     gateLeftCornerCol = getPoleCorners(leftPole)[1][0]
     gateRightCornerCol = getPoleCorners(rightPole)[0][0]
@@ -88,8 +109,8 @@ def getGateParameters(leftPole, rightPole, imageWidth):
     gateFacingDir = np.array([-gateFacingDir[1], gateFacingDir[0]])
     robotFacingDir = np.array([0,1])
     
-    beta = getVectorsAngle(robotFacingDir, gateFacingDir)
-    alpha = getVectorsAngle(robotFacingDir, gateCenterPos)
+    beta =  getVectorsAngle(gateCenterPos, gateFacingDir) #* 180 / 3.14159267 
+    alpha = getVectorsAngle(robotFacingDir, gateCenterPos)# * 180 / 3.14159267 
     robotDist = np.linalg.norm(gateCenterPos) 
     gateWidth = np.linalg.norm(rPos - lPos) - 2 * POLE_RADIUS
     if gateWidth > 600 or gateWidth < 400:
@@ -103,10 +124,11 @@ def getNearestGateParameters(data):
     img_hsv = cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2HSV) 
     img_depth = data['image_depth']
     K = data['K_rgb']
+    pc = data['point_cloud']
 
     for color in [GREEN, RED, BLUE]:
         # Get poles of this color from the image and sort them by depth
-        poles = getPoles([color], img_hsv, img_depth, K)
+        poles = getPoles([color], img_hsv, img_depth, K, pc)
         if len(poles) < 2:
             print('INFO: Fewer than 2 poles of color ' + COLOR_NAMES[color] +  ' detected!')
             continue
