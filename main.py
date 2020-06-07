@@ -90,7 +90,7 @@ def getNearestGateParameters(data):
         if len(poles) < 2:
             print('INFO: Fewer than 2 poles of color ' + COLOR_NAMES[color] +  ' detected!')
             continue
-        poles = sorted(poles, key=lambda x: x.get('depth'), reverse = True)
+        poles = sorted(poles, key=lambda x: x.get('depth'),reverse=False)
         if poles[0]['col'] < poles[1]['col']:
             leftPole = poles[0]
             rightPole = poles[1]
@@ -104,7 +104,7 @@ def getNearestGateParameters(data):
     if len(gatesDetected) == 0:
         print('ERROR: Fewer than 2 poles found for each color, no gate detected')
         exit(100)
-    gatesDetected = sorted(gatesDetected, key=lambda x: x.get('v'))
+    gatesDetected = sorted(gatesDetected, key=lambda x: x.get('v'), reverse=False)
     nearestGate = gatesDetected[0]
     #print('INFO: Nearest gate found :',  gatesDetected[0])
     print('Color of gate: ', nearestGate['color'])
