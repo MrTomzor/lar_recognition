@@ -63,16 +63,16 @@ def getGateParameters(leftPole, rightPole, imageWidth):
     lPos = np.array([leftPole['spaceVector'][0], leftPole['spaceVector'][2]])
     rPos = np.array([rightPole['spaceVector'][0], rightPole['spaceVector'][2]])
 
-    gateImageWidth = rightPole['bound'][0] - (leftPole['bound'][0] + leftPole['bound'][2])
+    gateImageWidth = rightPole['col'] - leftPole['col'] 
     gateImageCenter = (rightPole['col'] + leftPole['col']) / 2 - imageWidth / 2
 
     gateCenterPos = (lPos + rPos) / 2
     gateFacingDir = rPos - lPos
-    gateFacingDir = np.array([gateFacingDir[1], gateFacingDir[0]])
+    gateFacingDir = np.array([-gateFacingDir[1], gateFacingDir[0]])
     robotFacingDir = np.array([0,1])
     
-    alpha = getVectorsAngle(robotFacingDir, gateFacingDir)
-    beta = getVectorsAngle(robotFacingDir, gateCenterPos)
+    beta = getVectorsAngle(robotFacingDir, gateFacingDir)
+    alpha = getVectorsAngle(robotFacingDir, gateCenterPos)
     robotDist = np.linalg.norm(gateCenterPos) 
     gateWidth = np.linalg.norm(rPos - lPos) - 2 * POLE_RADIUS
     visibleWidth = np.cos(alpha) * gateWidth
