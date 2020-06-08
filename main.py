@@ -35,7 +35,6 @@ def getContours(color, img_hsv):
     mask = cv2.inRange(img_hsv, np.array([color - hueThreshold, 70 if color == GREEN else 150, 50]) , np.array([color + hueThreshold, 255, 255]))
 
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)    
-    imsave('mask_' + COLOR_NAMES[color] + '.png',[[[x, x, x] for x in row] for row in mask]) 
     return contours
 
 def getPoleCorners(pole):
@@ -61,19 +60,14 @@ def getPoles(colors, img_hsv, img_d, K, pc):
             area = cv2.contourArea(cnt)
             lng = cv2.arcLength(cnt, True)
             x, y, w, h = cv2.boundingRect(cnt)
-            #print('AREA',  area)
             if (area > 400):
                 M = cv2.moments(cnt)
                 cx = int(round(M['m10'] / M['m00']))
                 cy = int(round(M['m01'] / M['m00']))
                 rect = cv2.minAreaRect(cnt)
-                #spaceVector = np.dot(invK, np.array([cx, cy, 1]))
-                #spaceVector[1] = 0 # The y coordinate would only mess with distances
-                #spaceVector = spaceVector * img_d[cy,cx]
                 spaceVector = pc[cy][cx] * 1000
                 if img_d[cy, cx]!= 0:
                     pole = {'color': color, 'col': cx, 'row': cy, 'dist2': (spaceVector[0]**2 + spaceVector[2]**2), 'bound': [x, y, w, h], 'spaceVector': spaceVector, 'rect': cv2.boxPoints(rect)}
-                    #print('spaceVector = ', spaceVector)
                     poles.append(pole)
     return poles
 
@@ -114,7 +108,6 @@ def getNearestGateParameters(data):
         # Get poles of this color from the image and sort them by depth
         poles = getPoles([color], img_hsv, img_depth, K, pc)
         if len(poles) < 2:
-            #print('INFO: Fewer than 2 poles of color ' + COLOR_NAMES[color] +  ' detected!')
             continue
         poles = sorted(poles, key=lambda x: x.get('dist2'),reverse=False)
         if poles[0]['col'] < poles[1]['col']:
@@ -127,7 +120,7 @@ def getNearestGateParameters(data):
         # then the robot is probably inside a gate and the nearest pole is discarded
         params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
         if params == None:
-            print("INFO: Nearest " + COLOR_NAMES[color] + " gate too wide or too small, robot may be inside the gate")
+            print("INFO: Nearest " + COLOR_NAMES[color] + " gate too wide or too narrow, robot may be inside the gate")
             if len(poles) < 3:
                 continue
             poles.pop(0)
@@ -164,5 +157,4 @@ if __name__ == "__main__":
         print('ERROR: No filename given! Please add the data filename as an argument while calling this script')
         exit(101)
     data = loadmat(sys.argv[1])
-    imsave('testimg.png',cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2RGB))
     getNearestGateParameters(data)
