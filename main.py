@@ -35,7 +35,7 @@ def getContours(color, img_hsv):
     mask = cv2.inRange(img_hsv, np.array([color - hueThreshold, 70 if color == GREEN else 150, 50]) , np.array([color + hueThreshold, 255, 255]))
 
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)    
-    #imsave('mask_' + COLOR_NAMES[color] + '.png',[[[x, x, x] for x in row] for row in mask]) 
+    imsave('mask_' + COLOR_NAMES[color] + '.png',[[[x, x, x] for x in row] for row in mask]) 
     return contours
 
 def getPoleCorners(pole):
@@ -127,7 +127,7 @@ def getNearestGateParameters(data):
         # then the robot is probably inside a gate and the nearest pole is discarded
         params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
         if params == None:
-            print("INFO: Nearest " + COLOR_NAMES[color] + " gate too wide or too narrow, robot may be inside the gate")
+            print("INFO: Nearest " + COLOR_NAMES[color] + " gate too wide or too small, robot may be inside the gate")
             if len(poles) < 3:
                 continue
             poles.pop(0)
@@ -149,14 +149,14 @@ def getNearestGateParameters(data):
         exit(100)
     gatesDetected = sorted(gatesDetected, key=lambda x: x.get('v'), reverse=False)
     nearestGate = gatesDetected[0]
-    print "Color of nearest gate: ", nearestGate['color']
-    print "c: ", nearestGate['c']
-    print "g: ", nearestGate['g']
-    print "alpha: ", nearestGate['alpha']
-    print "beta: ", nearestGate['beta']
-    print "v: ", nearestGate['v']
-    print "d: ", nearestGate['d'] 
-    print "Will robot pass after rotation?", nearestGate['willPass']
+    print("Color of nearest gate: ", nearestGate['color'])
+    print('c: ', nearestGate['c'])
+    print('g: ', nearestGate['g'])
+    print('alpha: ', nearestGate['alpha'])
+    print('beta: ', nearestGate['beta'])
+    print('v: ', nearestGate['v'])
+    print('d: ', nearestGate['d']) 
+    print('Will robot pass after rotation?', nearestGate['willPass'])
     return 
 
 if __name__ == "__main__":
@@ -164,5 +164,5 @@ if __name__ == "__main__":
         print('ERROR: No filename given! Please add the data filename as an argument while calling this script')
         exit(101)
     data = loadmat(sys.argv[1])
-    #imsave('testimg.png',cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2RGB))
+    imsave('testimg.png',cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2RGB))
     getNearestGateParameters(data)
