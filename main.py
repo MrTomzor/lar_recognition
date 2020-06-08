@@ -59,7 +59,7 @@ def getPoles(colors, img_hsv, img_d, K, pc):
             area = cv2.contourArea(cnt)
             lng = cv2.arcLength(cnt, True)
             x, y, w, h = cv2.boundingRect(cnt)
-            if (area > 400):
+            if (area > 400 and h/w > 3):
                 M = cv2.moments(cnt)
                 cx = int(round(M['m10'] / M['m00']))
                 cy = int(round(M['m01'] / M['m00']))
