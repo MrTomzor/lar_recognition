@@ -29,7 +29,6 @@ def getVectorsAngle(v1, v2):
         return np.arccos(np.dot(np.transpose(v1),v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
     return -np.arccos(np.dot(np.transpose(v1),v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
 
-
 def getContours(color, img_hsv):
     hueThreshold = 20
     mask = cv2.inRange(img_hsv, np.array([color - hueThreshold, 70 if color == GREEN else 150, 50]) , np.array([color + hueThreshold, 255, 255]))
@@ -120,9 +119,9 @@ def getNearestGateParameters(data):
         # then the robot is probably inside a gate and the nearest pole is discarded
         params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
         if params == None:
-            print("INFO: Nearest " + COLOR_NAMES[color] + " gate too wide or too narrow, robot may be inside the gate")
             if len(poles) < 3:
                 continue
+            print("INFO: Nearest " + COLOR_NAMES[color] + " gate too wide or too narrow, robot may be inside the gate")
             poles.pop(0)
             if poles[0]['col'] < poles[1]['col']:
                 leftPole = poles[0]
