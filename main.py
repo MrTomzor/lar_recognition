@@ -35,7 +35,7 @@ def getContours(color, img_hsv):
     mask = cv2.inRange(img_hsv, np.array([color - hueThreshold, 70 if color == GREEN else 150, 50]) , np.array([color + hueThreshold, 255, 255]))
 
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)    
-    imsave('mask_' + COLOR_NAMES[color] + '.png',[[[x, x, x] for x in row] for row in mask]) 
+    #imsave('mask_' + COLOR_NAMES[color] + '.png',[[[x, x, x] for x in row] for row in mask]) 
     return contours
 
 def getPoleCorners(pole):
@@ -72,7 +72,7 @@ def getPoles(colors, img_hsv, img_d, K, pc):
                 #spaceVector = spaceVector * img_d[cy,cx]
                 spaceVector = pc[cy][cx] * 1000
                 if img_d[cy, cx]!= 0:
-                    pole = {'color': color, 'col': cx, 'row': cy, 'depth': img_d[cy, cx], 'bound': [x, y, w, h], 'spaceVector': spaceVector, 'rect': cv2.boxPoints(rect)}
+                    pole = {'color': color, 'col': cx, 'row': cy, 'dist2': (spaceVector[0]**2 + spaceVector[2]**2), 'bound': [x, y, w, h], 'spaceVector': spaceVector, 'rect': cv2.boxPoints(rect)}
                     #print('spaceVector = ', spaceVector)
                     poles.append(pole)
     return poles
@@ -81,22 +81,6 @@ def getGateParameters(leftPole, rightPole, imageWidth):
     # Transform the coordinates of poles to a top down representation where z -> y, x->x
     lPos = np.array([leftPole['spaceVector'][0], leftPole['spaceVector'][2]])
     rPos = np.array([rightPole['spaceVector'][0], rightPole['spaceVector'][2]])
-
-    
-    #x1, y1, z1 = leftPole['spaceVector']
-    #x2, y2, z2 = rightPole['spaceVector']
-    #x = (x1 + x2) / 2
-    #z = (z1 + z2) / 2
-    #size = math.sqrt(x**2 + z**2)
-    #v = math.sqrt(x**2+z**2)
-    #d = math.sqrt((x1-x2)**2+(z1-z2)**2)
-    #alpha = -math.degrees(math.atan2(x, z))
-    #gamma = 90 - math.degrees(math.atan((x2 - x1) / (z2 - z1)))
-    #beta = gamma - alpha
-    #if(beta > 90):
-    #    beta -= 180
-    #alpha*= 3.14159267/180
-    #beta *= 3.14159267/180
 
     gateLeftCornerCol = getPoleCorners(leftPole)[1][0]
     gateRightCornerCol = getPoleCorners(rightPole)[0][0]
@@ -130,9 +114,9 @@ def getNearestGateParameters(data):
         # Get poles of this color from the image and sort them by depth
         poles = getPoles([color], img_hsv, img_depth, K, pc)
         if len(poles) < 2:
-            print('INFO: Fewer than 2 poles of color ' + COLOR_NAMES[color] +  ' detected!')
+            #print('INFO: Fewer than 2 poles of color ' + COLOR_NAMES[color] +  ' detected!')
             continue
-        poles = sorted(poles, key=lambda x: x.get('depth'),reverse=False)
+        poles = sorted(poles, key=lambda x: x.get('dist2'),reverse=False)
         if poles[0]['col'] < poles[1]['col']:
             leftPole = poles[0]
             rightPole = poles[1]
@@ -143,7 +127,7 @@ def getNearestGateParameters(data):
         # then the robot is probably inside a gate and the nearest pole is discarded
         params = getGateParameters(leftPole, rightPole, len(img_hsv[0]))
         if params == None:
-            print("INFO: Nearest " + COLOR_NAMES[color] + " gate too wide or too small, robot may be inside the gate")
+            print("INFO: Nearest " + COLOR_NAMES[color] + " gate too wide or too narrow, robot may be inside the gate")
             if len(poles) < 3:
                 continue
             poles.pop(0)
@@ -165,14 +149,14 @@ def getNearestGateParameters(data):
         exit(100)
     gatesDetected = sorted(gatesDetected, key=lambda x: x.get('v'), reverse=False)
     nearestGate = gatesDetected[0]
-    print('Color of nearest gate: ', nearestGate['color'])
-    print('c: ', nearestGate['c'])
-    print('g: ', nearestGate['g'])
-    print('alpha: ', nearestGate['alpha'])
-    print('beta: ', nearestGate['beta'])
-    print('v: ', nearestGate['v'])
-    print('d: ', nearestGate['d']) 
-    print('Will robot pass after rotation?', nearestGate['willPass'])
+    print "Color of nearest gate: ", nearestGate['color']
+    print "c: ", nearestGate['c']
+    print "g: ", nearestGate['g']
+    print "alpha: ", nearestGate['alpha']
+    print "beta: ", nearestGate['beta']
+    print "v: ", nearestGate['v']
+    print "d: ", nearestGate['d'] 
+    print "Will robot pass after rotation?", nearestGate['willPass']
     return 
 
 if __name__ == "__main__":
@@ -180,5 +164,5 @@ if __name__ == "__main__":
         print('ERROR: No filename given! Please add the data filename as an argument while calling this script')
         exit(101)
     data = loadmat(sys.argv[1])
-    imsave('testimg.png',cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2RGB))
+    #imsave('testimg.png',cv2.cvtColor(data['image_rgb'], cv2.COLOR_BGR2RGB))
     getNearestGateParameters(data)
